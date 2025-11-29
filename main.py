@@ -28,8 +28,8 @@ class TextValidApp:
         # Track currently highlighted range
         self.current_highlight_tag = None
         # Font size tracking
-        self.text_font_size = 19
-        self.log_font_size = 18
+        self.text_font_size = 16
+        self.log_font_size = 15
 
         self.file_a_path = None
         self.file_b_path = None
@@ -53,15 +53,15 @@ class TextValidApp:
         # self.root.configure(bg="#f5f5f7") # macOS-ish light gray
 
         # Configure common fonts
-        default_font = ("Helvetica Neue", 19)
-        header_font = ("Helvetica Neue", 21, "bold")
+        default_font = ("Helvetica Neue", 16)
+        header_font = ("Helvetica Neue", 17, "bold")
         
         self.style.configure(".", font=default_font)
         self.style.configure("TButton", padding=6)
         self.style.configure("TLabel", padding=2)
         
         # Custom style for the large Compare button
-        self.style.configure("Large.TButton", font=("Helvetica Neue", 26, "bold"), padding=15)
+        self.style.configure("Large.TButton", font=("Helvetica Neue", 20, "bold"), padding=15)
 
     def _setup_ui(self):
         # Top Control Panel
@@ -90,10 +90,10 @@ class TextValidApp:
 
         # Text Area A (Source)
         self.frame_a = ttk.Frame(self.paned_window)
-        self.lbl_header_a = ttk.Label(self.frame_a, text="Source (Original) - Drop File Here", font=("Helvetica Neue", 21, "bold"))
+        self.lbl_header_a = ttk.Label(self.frame_a, text="Source (Original) - Drop File Here", font=("Helvetica Neue", 17, "bold"))
         self.lbl_header_a.pack(side=tk.TOP, anchor="w", pady=(0, 5))
         
-        self.text_a = tk.Text(self.frame_a, wrap=tk.NONE, undo=False, font=("Menlo", 19), relief=tk.FLAT, highlightthickness=1, highlightbackground="#cccccc")
+        self.text_a = tk.Text(self.frame_a, wrap=tk.NONE, undo=False, font=("Menlo", 16), relief=tk.FLAT, highlightthickness=1, highlightbackground="#cccccc")
         self.scroll_a_y = ttk.Scrollbar(self.frame_a, orient=tk.VERTICAL, command=self.text_a.yview)
         self.scroll_a_x = ttk.Scrollbar(self.frame_a, orient=tk.HORIZONTAL, command=self.text_a.xview)
         self.text_a.configure(yscrollcommand=self._sync_scroll_y, xscrollcommand=self.scroll_a_x.set)
@@ -110,10 +110,10 @@ class TextValidApp:
 
         # Text Area B (Target)
         self.frame_b = ttk.Frame(self.paned_window)
-        self.lbl_header_b = ttk.Label(self.frame_b, text="Target file (AI Generated) - Drop File Here", font=("Helvetica Neue", 21, "bold"))
+        self.lbl_header_b = ttk.Label(self.frame_b, text="Target file (AI Generated) - Drop File Here", font=("Helvetica Neue", 17, "bold"))
         self.lbl_header_b.pack(side=tk.TOP, anchor="w", pady=(0, 5))
 
-        self.text_b = tk.Text(self.frame_b, wrap=tk.NONE, undo=False, font=("Menlo", 19), relief=tk.FLAT, highlightthickness=1, highlightbackground="#cccccc")
+        self.text_b = tk.Text(self.frame_b, wrap=tk.NONE, undo=False, font=("Menlo", 16), relief=tk.FLAT, highlightthickness=1, highlightbackground="#cccccc")
         self.scroll_b_y = ttk.Scrollbar(self.frame_b, orient=tk.VERTICAL, command=self.text_b.yview)
         self.scroll_b_x = ttk.Scrollbar(self.frame_b, orient=tk.HORIZONTAL, command=self.text_b.xview)
         self.text_b.configure(yscrollcommand=self._sync_scroll_y, xscrollcommand=self.scroll_b_x.set)
@@ -137,7 +137,7 @@ class TextValidApp:
         self.log_frame = ttk.LabelFrame(self.root, text="Comparison Log", padding=10)
         self.log_frame.pack(fill=tk.BOTH, expand=False, padx=15, pady=15)
         
-        self.log_text = tk.Text(self.log_frame, height=12, font=("Menlo", 18), relief=tk.FLAT, bg="#1e1e1e", fg="#d4d4d4", wrap=tk.WORD)
+        self.log_text = tk.Text(self.log_frame, height=18, font=("Menlo", 15), relief=tk.FLAT, bg="#1e1e1e", fg="#d4d4d4", wrap=tk.WORD)
         self.log_scroll = ttk.Scrollbar(self.log_frame, orient=tk.VERTICAL, command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=self.log_scroll.set)
         # Make read-only by preventing insertions/deletions

@@ -49,6 +49,13 @@ AITextValid is perfect for verifying AI-generated content, especially when moder
 - **Font Size Control**: Adjustable with `Cmd+`/`Cmd-` hotkeys
 - **Keyboard Shortcuts**: `Cmd+Enter` to compare files
 
+## Download Windows Executable
+
+You can download the latest Windows executable (`.exe`) from the **Actions** tab in the GitHub repository:
+1. Go to the [Actions](https://github.com/chicman/AItextvalid/actions) tab.
+2. Click on the latest "Build Windows Executable" run.
+3. Scroll down to the **Artifacts** section and download `AITextValid-Windows`.
+
 ## Requirements
 
 - Python 3.x
