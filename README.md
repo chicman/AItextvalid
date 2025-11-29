@@ -56,6 +56,16 @@ brew install python3
 pip3 install tkinterdnd2
 ```
 
+### Windows
+
+```bash
+# Install Python 3 from python.org
+
+# Install tkinterdnd2
+pip install tkinterdnd2
+```
+
+
 > **Note for macOS users**: You may see a harmless warning on first click: `error messaging the mach port for IMKCFRunLoopWakeUpReliable`. This is a normal macOS system message related to input methods and can be safely ignored.
 
 ## Usage

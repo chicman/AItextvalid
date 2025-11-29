@@ -1,6 +1,0 @@
-Hello World
-This is a test file.
-Line 3 is common.
-Line 4 is different in B.
-Line 4.5 is added in B.
-Line 5 is common.

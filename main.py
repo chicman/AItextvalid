@@ -5,6 +5,12 @@ import difflib
 import os
 import re
 import unicodedata
+import platform
+
+# Determine OS and Key Bindings
+IS_MAC = platform.system() == 'Darwin'
+CMD_KEY = "Command" if IS_MAC else "Control"
+CMD_KEY_NAME = "Cmd" if IS_MAC else "Ctrl"
 
 class TextValidApp:
     def __init__(self, root):
@@ -69,7 +75,7 @@ class TextValidApp:
         self.lbl_file_b.grid(row=1, column=1, padx=5, pady=5, sticky="w")
 
         # Compare Button (Large)
-        self.btn_compare = ttk.Button(control_frame, text="Compare (Cmd+Enter)", command=self.compare_files, state=tk.DISABLED, style="Large.TButton")
+        self.btn_compare = ttk.Button(control_frame, text=f"Compare ({CMD_KEY_NAME}+Enter)", command=self.compare_files, state=tk.DISABLED, style="Large.TButton")
         self.btn_compare.grid(row=0, column=2, rowspan=2, padx=30, sticky="ns")
 
         # Main Content Area (Split View)
@@ -138,20 +144,20 @@ class TextValidApp:
 
     def _bind_hotkeys(self):
         # Bind Command+Enter (macOS) and Control+Enter (Windows/Linux)
-        self.root.bind("<Command-Return>", lambda event: self.compare_files())
-        self.root.bind("<Control-Return>", lambda event: self.compare_files())
+        self.root.bind(f"<{CMD_KEY}-Return>", lambda event: self.compare_files())
+        
         # Bind font size controls
         # Increase: Cmd/Ctrl + Plus/Equal
-        self.root.bind("<Command-plus>", lambda event: self._increase_font_size())
-        self.root.bind("<Command-equal>", lambda event: self._increase_font_size())
-        self.root.bind("<Control-plus>", lambda event: self._increase_font_size())
-        self.root.bind("<Control-equal>", lambda event: self._increase_font_size())
-        # Decrease: Cmd/Ctrl + Minus/Underscore (macOS needs both)
-        self.root.bind("<Command-minus>", lambda event: self._decrease_font_size())
-        self.root.bind("<Command-underscore>", lambda event: self._decrease_font_size())
-        self.root.bind("<Command-KP_Subtract>", lambda event: self._decrease_font_size())
-        self.root.bind("<Control-minus>", lambda event: self._decrease_font_size())
-        self.root.bind("<Control-underscore>", lambda event: self._decrease_font_size())
+        self.root.bind(f"<{CMD_KEY}-plus>", lambda event: self._increase_font_size())
+        self.root.bind(f"<{CMD_KEY}-equal>", lambda event: self._increase_font_size())
+        
+        # Decrease: Cmd/Ctrl + Minus/Underscore
+        self.root.bind(f"<{CMD_KEY}-minus>", lambda event: self._decrease_font_size())
+        self.root.bind(f"<{CMD_KEY}-underscore>", lambda event: self._decrease_font_size())
+        
+        # Keypad support if needed
+        self.root.bind(f"<{CMD_KEY}-KP_Subtract>", lambda event: self._decrease_font_size())
+        self.root.bind(f"<{CMD_KEY}-KP_Add>", lambda event: self._increase_font_size())
 
     def _configure_tags(self, text_widget):
         text_widget.tag_config("added", background="#e6ffec", foreground="#006600") # Light green (Extra in Target)
