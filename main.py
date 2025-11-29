@@ -100,7 +100,7 @@ class TextValidApp:
         self.text_a.drop_target_register(DND_FILES)
         self.text_a.dnd_bind('<<Drop>>', self.drop_a)
         
-        self.paned_window.add(self.frame_a)
+        self.paned_window.add(self.frame_a, stretch="always")
 
         # Text Area B (Target)
         self.frame_b = ttk.Frame(self.paned_window)
@@ -120,10 +120,8 @@ class TextValidApp:
         self.text_b.drop_target_register(DND_FILES)
         self.text_b.dnd_bind('<<Drop>>', self.drop_b)
 
-        self.paned_window.add(self.frame_b)
+        self.paned_window.add(self.frame_b, stretch="always")
         
-        # Bind to configure event to maintain 50/50 split on resize
-        self.root.bind("<Configure>", self._maintain_split)
 
         # Configure Tags for Highlighting
         self._configure_tags(self.text_a)
@@ -179,14 +177,6 @@ class TextValidApp:
         finally:
             self._scrolling = False
 
-    def _maintain_split(self, event=None):
-        """Maintain 50/50 split between text panes when window is resized."""
-        if event and event.widget == self.root:
-            # Get the current width of the paned window
-            width = self.paned_window.winfo_width()
-            if width > 1:  # Only adjust if we have a valid width
-                # Set sash position to middle (50/50 split)
-                self.paned_window.sash_place(0, width // 2, 0)
 
     def drop_a(self, event):
         path = event.data
