@@ -21,7 +21,9 @@ CMD_KEY_NAME = "Cmd" if IS_MAC else "Ctrl"
 # File size limits (in bytes)
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB hard limit
 WARN_FILE_SIZE = 1 * 1024 * 1024  # 1MB warning threshold
-SUMMARY_MODE_SIZE = 500 * 1024  # 500KB - use summary mode instead of full diff
+SUMMARY_MODE_SIZE = 5 * 1024 * 1024  # 5MB - use summary mode instead of full diff
+CHUNK_SIZE = 50000  # Compare in 50KB chunks to prevent freezing
+
 
 class TextValidApp:
     def __init__(self, root):
@@ -35,6 +37,8 @@ class TextValidApp:
         # Font size tracking
         self.text_font_size = 16
         self.log_font_size = 15
+        # Log counter for tracking entries
+        self.log_counter = 0
 
         self.file_a_path = None
         self.file_b_path = None
@@ -324,6 +328,15 @@ class TextValidApp:
         norm_a, map_a = self.normalize_text(text_a)
         norm_b, map_b = self.normalize_text(text_b)
         
+        # Use chunked comparison for better performance on large files
+        if len(norm_a) > CHUNK_SIZE or len(norm_b) > CHUNK_SIZE:
+            self._log(f"Using optimized chunked comparison for large content ({len(norm_a) + len(norm_b)} chars)...")
+            self._display_diff_chunked(text_a, text_b, norm_a, norm_b, map_a, map_b)
+        else:
+            self._display_diff_full(text_a, text_b, norm_a, norm_b, map_a, map_b)
+
+    def _display_diff_full(self, text_a, text_b, norm_a, norm_b, map_a, map_b):
+        """Original full diff algorithm for smaller files."""
         matcher = difflib.SequenceMatcher(None, norm_a, norm_b)
         
         curr_a = 0
@@ -416,6 +429,164 @@ class TextValidApp:
         else:
             self._log("Comparison complete. Differences found.")
 
+    def _display_diff_chunked(self, text_a, text_b, norm_a, norm_b, map_a, map_b):
+        """Optimized chunked comparison for large files to prevent freezing."""
+        differences_found = False
+        
+        # Quick check if files are identical
+        if norm_a == norm_b:
+            self.text_a.insert(tk.END, text_a, None)
+            self.text_b.insert(tk.END, text_b, None)
+            self.text_a.config(state=tk.DISABLED)
+            self.text_b.config(state=tk.DISABLED)
+            self._log("SUCCESS: Files are identical (ignoring punctuation/whitespace).")
+            return
+        
+        # Split into chunks for comparison
+        chunk_size = CHUNK_SIZE
+        num_chunks = max(len(norm_a), len(norm_b)) // chunk_size + 1
+        
+        self._log(f"Comparing in {num_chunks} chunks...")
+        
+        curr_a_norm = 0
+        curr_b_norm = 0
+        curr_a = 0
+        curr_b = 0
+        
+        for chunk_idx in range(num_chunks):
+            # Get chunk bounds in normalized text
+            chunk_start_a = chunk_idx * chunk_size
+            chunk_end_a = min((chunk_idx + 1) * chunk_size, len(norm_a))
+            chunk_start_b = chunk_idx * chunk_size
+            chunk_end_b = min((chunk_idx + 1) * chunk_size, len(norm_b))
+            
+            if chunk_start_a >= len(norm_a) and chunk_start_b >= len(norm_b):
+                break
+            
+            # Get chunks
+            chunk_norm_a = norm_a[chunk_start_a:chunk_end_a]
+            chunk_norm_b = norm_b[chunk_start_b:chunk_end_b]
+            
+            # Quick check if chunks are identical
+            if chunk_norm_a == chunk_norm_b:
+                # Map back to original text
+                orig_start_a = map_a[chunk_start_a] if chunk_start_a < len(map_a) else len(text_a)
+                orig_end_a = map_a[chunk_end_a - 1] + 1 if chunk_end_a > chunk_start_a and chunk_end_a - 1 < len(map_a) else orig_start_a
+                orig_start_b = map_b[chunk_start_b] if chunk_start_b < len(map_b) else len(text_b)
+                orig_end_b = map_b[chunk_end_b - 1] + 1 if chunk_end_b > chunk_start_b and chunk_end_b - 1 < len(map_b) else orig_start_b
+                
+                # Insert matching content
+                content_a = text_a[curr_a:orig_end_a]
+                content_b = text_b[curr_b:orig_end_b]
+                self._insert_and_sync(content_a, content_b, None)
+                
+                curr_a = orig_end_a
+                curr_b = orig_end_b
+            else:
+                # Chunks differ - do detailed comparison of this chunk
+                differences_found = True
+                self._log(f"Analyzing differences in chunk {chunk_idx + 1}/{num_chunks}...")
+                
+                # Run detailed diff on this chunk only
+                chunk_map_a = [map_a[i] - (map_a[chunk_start_a] if chunk_start_a < len(map_a) else 0) 
+                              for i in range(chunk_start_a, chunk_end_a) if i < len(map_a)]
+                chunk_map_b = [map_b[i] - (map_b[chunk_start_b] if chunk_start_b < len(map_b) else 0) 
+                              for i in range(chunk_start_b, chunk_end_b) if i < len(map_b)]
+                
+                # Get original text for this chunk
+                orig_start_a = map_a[chunk_start_a] if chunk_start_a < len(map_a) else len(text_a)
+                orig_end_a = map_a[chunk_end_a - 1] + 1 if chunk_end_a > 0 and chunk_end_a - 1 < len(map_a) else len(text_a)
+                orig_start_b = map_b[chunk_start_b] if chunk_start_b < len(map_b) else len(text_b)
+                orig_end_b = map_b[chunk_end_b - 1] + 1 if chunk_end_b > 0 and chunk_end_b - 1 < len(map_b) else len(text_b)
+                
+                chunk_text_a = text_a[orig_start_a:orig_end_a]
+                chunk_text_b = text_b[orig_start_b:orig_end_b]
+                
+                # Detailed diff of the chunk
+                matcher = difflib.SequenceMatcher(None, chunk_norm_a, chunk_norm_b)
+                
+                for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+                    # Map indices back to chunk text
+                    if i1 < len(chunk_map_a):
+                        start_a_chunk = chunk_map_a[i1]
+                    else:
+                        start_a_chunk = len(chunk_text_a)
+                    
+                    if i2 > 0 and i2 - 1 < len(chunk_map_a):
+                        end_a_chunk = chunk_map_a[i2 - 1] + 1
+                    else:
+                        end_a_chunk = start_a_chunk
+                    
+                    if j1 < len(chunk_map_b):
+                        start_b_chunk = chunk_map_b[j1]
+                    else:
+                        start_b_chunk = len(chunk_text_b)
+                    
+                    if j2 > 0 and j2 - 1 < len(chunk_map_b):
+                        end_b_chunk = chunk_map_b[j2 - 1] + 1
+                    else:
+                        end_b_chunk = start_b_chunk
+                    
+                    # Handle ignored content before this operation
+                    ignored_a = chunk_text_a[curr_a - orig_start_a:start_a_chunk] if curr_a >= orig_start_a else ""
+                    ignored_b = chunk_text_b[curr_b - orig_start_b:start_b_chunk] if curr_b >= orig_start_b else ""
+                    if ignored_a or ignored_b:
+                        self._insert_and_sync(ignored_a, ignored_b, "header")
+                    
+                    # Handle the meaningful content
+                    content_a_chunk = chunk_text_a[start_a_chunk:end_a_chunk]
+                    content_b_chunk = chunk_text_b[start_b_chunk:end_b_chunk]
+                    
+                    if tag == 'equal':
+                        self._insert_and_sync(content_a_chunk, content_b_chunk, None)
+                    elif tag == 'replace':
+                        widget_start_a = self.text_a.index("end-1c")
+                        widget_start_b = self.text_b.index("end-1c")
+                        self._insert_and_sync(content_a_chunk, content_b_chunk, "removed", "added")
+                        widget_end_a = self.text_a.index("end-1c")
+                        widget_end_b = self.text_b.index("end-1c")
+                        self._log_difference(f"[Chunk {chunk_idx+1}] Replaced: '{content_a_chunk[:50]}...' with '{content_b_chunk[:50]}...'",
+                                           widget_start_a, widget_end_a, widget_start_b, widget_end_b)
+                    elif tag == 'delete':
+                        widget_start_a = self.text_a.index("end-1c")
+                        widget_start_b = self.text_b.index("end-1c")
+                        self._insert_and_sync(content_a_chunk, "", "removed", None)
+                        widget_end_a = self.text_a.index("end-1c")
+                        widget_end_b = self.text_b.index("end-1c")
+                        self._log_difference(f"[Chunk {chunk_idx+1}] Deleted: '{content_a_chunk[:50]}...'",
+                                           widget_start_a, widget_end_a, widget_start_b, widget_end_b)
+                    elif tag == 'insert':
+                        widget_start_a = self.text_a.index("end-1c")
+                        widget_start_b = self.text_b.index("end-1c")
+                        self._insert_and_sync("", content_b_chunk, None, "added")
+                        widget_end_a = self.text_a.index("end-1c")
+                        widget_end_b = self.text_b.index("end-1c")
+                        self._log_difference(f"[Chunk {chunk_idx+1}] Inserted: '{content_b_chunk[:50]}...'",
+                                           widget_start_a, widget_end_a, widget_start_b, widget_end_b)
+                    
+                    curr_a = orig_start_a + end_a_chunk
+                    curr_b = orig_start_b + end_b_chunk
+                
+                # Move to end of chunk
+                curr_a = orig_end_a
+                curr_b = orig_end_b
+
+            
+            curr_a_norm = chunk_end_a
+            curr_b_norm = chunk_end_b
+        
+        # Handle any remaining content
+        if curr_a < len(text_a) or curr_b < len(text_b):
+            self._insert_and_sync(text_a[curr_a:], text_b[curr_b:], None)
+        
+        self.text_a.config(state=tk.DISABLED)
+        self.text_b.config(state=tk.DISABLED)
+        
+        if not differences_found:
+            self._log("SUCCESS: Files are identical (ignoring punctuation/whitespace).")
+        else:
+            self._log(f"Comparison complete. Differences found (chunks processed: {num_chunks}).")
+
     def _compare_summary_mode(self, text_a, text_b):
         """Lightweight comparison mode for large files - shows summary instead of full diff."""
         self._clear_log()
@@ -479,7 +650,8 @@ class TextValidApp:
 
     def _log(self, message):
         """Log a generic message without mapping (e.g., start/completion)."""
-        self.log_text.insert(tk.END, message + "\n")
+        self.log_text.insert(tk.END, f"[{self.log_counter}] {message}\n")
+        self.log_counter += 1
         self.log_text.see(tk.END)
 
     def _log_difference(self, message, widget_start_a, widget_end_a, widget_start_b, widget_end_b):
@@ -492,8 +664,9 @@ class TextValidApp:
         # Store WIDGET positions, not original text positions
         self.log_mappings[tag_name] = (widget_start_a, widget_end_a, widget_start_b, widget_end_b)
         
-        # Insert the message
-        self.log_text.insert(tk.END, message + "\n")
+        # Insert the message with log ID
+        self.log_text.insert(tk.END, f"[{self.log_counter}] {message}\n")
+        self.log_counter += 1
         
         # Get the position after insertion (should be start of next line)
         line_end = self.log_text.index("end-1c")
@@ -580,6 +753,7 @@ class TextValidApp:
     def _clear_log(self):
         self.log_text.delete(1.0, tk.END)
         self.log_mappings = {}  # Clear mappings when clearing log
+        self.log_counter = 0  # Reset log counter
 
     def _increase_font_size(self):
         """Increase font size for all text widgets."""
