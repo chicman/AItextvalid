@@ -27,6 +27,16 @@ AITextValid is perfect for verifying AI-generated content, especially when moder
     -   **Result**: SUCCESS! The log shows "Files are identical (ignoring punctuation/whitespace)"
     -   This confirms the AI only added punctuation without modifying, deleting, or adding any Chinese characters
 
+### More Examples
+
+**Diamond Sutra (金剛經)**
+- Source: `一切有為法如夢幻泡影如露亦如電應作如是觀`
+- Target: `一切有為法，如夢幻泡影，如露亦如電，應作如是觀。`
+
+**Amitabha Sutra (佛說阿彌陀經)**
+- Source: `舍利弗彼土何故名為極樂其國眾生無有眾苦但受諸樂故名極樂`
+- Target: `舍利弗，彼土何故名為極樂？其國眾生，無有眾苦，但受諸樂，故名極樂。`
+
 **Why this matters**: When working with sacred or historical texts, it's critical to ensure AI hasn't altered the actual content—only the formatting. AITextValid gives you confidence that the original text remains intact.
 
 ## Features
