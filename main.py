@@ -310,9 +310,6 @@ class TextValidApp:
             self.btn_compare.config(state=tk.NORMAL)
             self.btn_compare.config(text=f"Compare ({CMD_KEY_NAME}+Enter)")
 
-        except Exception as e:
-            messagebox.showerror("Error", f"Comparison failed: {e}")
-
     def _display_diff(self, text_a, text_b):
         # Clear existing content
         self.text_a.config(state=tk.NORMAL)
