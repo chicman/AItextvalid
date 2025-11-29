@@ -6,6 +6,12 @@ import os
 import re
 import unicodedata
 import platform
+import traceback
+import logging
+
+# Configure logging
+logging.basicConfig(filename='debug.log', level=logging.DEBUG, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Determine OS and Key Bindings
 IS_MAC = platform.system() == 'Darwin'
@@ -22,8 +28,8 @@ class TextValidApp:
         # Track currently highlighted range
         self.current_highlight_tag = None
         # Font size tracking
-        self.text_font_size = 12
-        self.log_font_size = 11
+        self.text_font_size = 19
+        self.log_font_size = 18
 
         self.file_a_path = None
         self.file_b_path = None
@@ -47,15 +53,15 @@ class TextValidApp:
         # self.root.configure(bg="#f5f5f7") # macOS-ish light gray
 
         # Configure common fonts
-        default_font = ("Helvetica Neue", 12)
-        header_font = ("Helvetica Neue", 13, "bold")
+        default_font = ("Helvetica Neue", 19)
+        header_font = ("Helvetica Neue", 21, "bold")
         
         self.style.configure(".", font=default_font)
         self.style.configure("TButton", padding=6)
         self.style.configure("TLabel", padding=2)
         
         # Custom style for the large Compare button
-        self.style.configure("Large.TButton", font=("Helvetica Neue", 16, "bold"), padding=15)
+        self.style.configure("Large.TButton", font=("Helvetica Neue", 26, "bold"), padding=15)
 
     def _setup_ui(self):
         # Top Control Panel
@@ -84,10 +90,10 @@ class TextValidApp:
 
         # Text Area A (Source)
         self.frame_a = ttk.Frame(self.paned_window)
-        self.lbl_header_a = ttk.Label(self.frame_a, text="Source (Original) - Drop File Here", font=("Helvetica Neue", 13, "bold"))
+        self.lbl_header_a = ttk.Label(self.frame_a, text="Source (Original) - Drop File Here", font=("Helvetica Neue", 21, "bold"))
         self.lbl_header_a.pack(side=tk.TOP, anchor="w", pady=(0, 5))
         
-        self.text_a = tk.Text(self.frame_a, wrap=tk.NONE, undo=False, font=("Menlo", 12), relief=tk.FLAT, highlightthickness=1, highlightbackground="#cccccc")
+        self.text_a = tk.Text(self.frame_a, wrap=tk.NONE, undo=False, font=("Menlo", 19), relief=tk.FLAT, highlightthickness=1, highlightbackground="#cccccc")
         self.scroll_a_y = ttk.Scrollbar(self.frame_a, orient=tk.VERTICAL, command=self.text_a.yview)
         self.scroll_a_x = ttk.Scrollbar(self.frame_a, orient=tk.HORIZONTAL, command=self.text_a.xview)
         self.text_a.configure(yscrollcommand=self._sync_scroll_y, xscrollcommand=self.scroll_a_x.set)
@@ -104,10 +110,10 @@ class TextValidApp:
 
         # Text Area B (Target)
         self.frame_b = ttk.Frame(self.paned_window)
-        self.lbl_header_b = ttk.Label(self.frame_b, text="Target file (AI Generated) - Drop File Here", font=("Helvetica Neue", 13, "bold"))
+        self.lbl_header_b = ttk.Label(self.frame_b, text="Target file (AI Generated) - Drop File Here", font=("Helvetica Neue", 21, "bold"))
         self.lbl_header_b.pack(side=tk.TOP, anchor="w", pady=(0, 5))
 
-        self.text_b = tk.Text(self.frame_b, wrap=tk.NONE, undo=False, font=("Menlo", 12), relief=tk.FLAT, highlightthickness=1, highlightbackground="#cccccc")
+        self.text_b = tk.Text(self.frame_b, wrap=tk.NONE, undo=False, font=("Menlo", 19), relief=tk.FLAT, highlightthickness=1, highlightbackground="#cccccc")
         self.scroll_b_y = ttk.Scrollbar(self.frame_b, orient=tk.VERTICAL, command=self.text_b.yview)
         self.scroll_b_x = ttk.Scrollbar(self.frame_b, orient=tk.HORIZONTAL, command=self.text_b.xview)
         self.text_b.configure(yscrollcommand=self._sync_scroll_y, xscrollcommand=self.scroll_b_x.set)
@@ -131,7 +137,7 @@ class TextValidApp:
         self.log_frame = ttk.LabelFrame(self.root, text="Comparison Log", padding=10)
         self.log_frame.pack(fill=tk.BOTH, expand=False, padx=15, pady=15)
         
-        self.log_text = tk.Text(self.log_frame, height=8, font=("Menlo", 11), relief=tk.FLAT, bg="#1e1e1e", fg="#d4d4d4", wrap=tk.WORD)
+        self.log_text = tk.Text(self.log_frame, height=12, font=("Menlo", 18), relief=tk.FLAT, bg="#1e1e1e", fg="#d4d4d4", wrap=tk.WORD)
         self.log_scroll = ttk.Scrollbar(self.log_frame, orient=tk.VERTICAL, command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=self.log_scroll.set)
         # Make read-only by preventing insertions/deletions
@@ -509,6 +515,27 @@ class TextValidApp:
 
 
 if __name__ == "__main__":
-    root = TkinterDnD.Tk()
-    app = TextValidApp(root)
-    root.mainloop()
+    try:
+        logging.info("Starting application...")
+        root = TkinterDnD.Tk()
+        app = TextValidApp(root)
+        root.mainloop()
+    except Exception as e:
+        error_msg = f"An error occurred:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        logging.critical(error_msg)
+        try:
+            # Try to show error in GUI if possible
+            import tkinter.messagebox
+            # If root exists but mainloop failed, we might need a new root for the messagebox
+            # or just use the existing one if it's not destroyed.
+            # For safety, we'll try to use the existing root if available, or create a minimal one.
+            if 'root' in locals():
+                root.withdraw() # Hide main window if it exists
+            
+            err_root = tk.Tk()
+            err_root.withdraw()
+            tkinter.messagebox.showerror("Critical Error", error_msg)
+            err_root.destroy()
+        except:
+            # If GUI fails entirely, just print to stderr
+            print(error_msg)
