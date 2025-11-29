@@ -18,6 +18,11 @@ IS_MAC = platform.system() == 'Darwin'
 CMD_KEY = "Command" if IS_MAC else "Control"
 CMD_KEY_NAME = "Cmd" if IS_MAC else "Ctrl"
 
+# File size limits (in bytes)
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB hard limit
+WARN_FILE_SIZE = 1 * 1024 * 1024  # 1MB warning threshold
+SUMMARY_MODE_SIZE = 500 * 1024  # 500KB - use summary mode instead of full diff
+
 class TextValidApp:
     def __init__(self, root):
         self.root = root
@@ -220,6 +225,25 @@ class TextValidApp:
 
     def _load_content(self, path, text_widget):
         try:
+            # Check file size first
+            file_size = os.path.getsize(path)
+            logging.info(f"Loading file: {path}, size: {file_size} bytes")
+            
+            if file_size > MAX_FILE_SIZE:
+                messagebox.showerror("File Too Large", 
+                                   f"File size is {file_size / (1024*1024):.1f}MB.\n\n"
+                                   f"Maximum supported size is {MAX_FILE_SIZE / (1024*1024):.0f}MB.\n\n"
+                                   "Please use a smaller file.")
+                return
+            
+            if file_size > WARN_FILE_SIZE:
+                result = messagebox.askyesno("Large File Warning",
+                                            f"File size is {file_size / (1024*1024):.2f}MB.\n\n"
+                                            "Processing large files may take time and could freeze the app.\n\n"
+                                            "Continue?")
+                if not result:
+                    return
+            
             with open(path, 'r', encoding='utf-8') as f:
                 content = f.read()
                 text_widget.config(state=tk.NORMAL)
@@ -228,6 +252,7 @@ class TextValidApp:
                 text_widget.config(state=tk.DISABLED)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load file: {e}")
+            logging.error(f"Failed to load file {path}: {e}")
 
     def _check_ready(self):
         if self.file_a_path and self.file_b_path:
@@ -254,12 +279,36 @@ class TextValidApp:
             return
 
         try:
+            # Disable compare button during processing
+            self.btn_compare.config(state=tk.DISABLED)
+            self.btn_compare.config(text="Processing...")
+            self.root.update_idletasks()  # Force UI update
+            
+            # Check combined file sizes
+            size_a = os.path.getsize(self.file_a_path)
+            size_b = os.path.getsize(self.file_b_path)
+            total_size = size_a + size_b
+            
+            logging.info(f"Comparing files: {size_a} + {size_b} = {total_size} bytes")
+            
             with open(self.file_a_path, 'r', encoding='utf-8') as f1, \
                  open(self.file_b_path, 'r', encoding='utf-8') as f2:
                 text_a = f1.read()
                 text_b = f2.read()
 
-            self._display_diff(text_a, text_b)
+            # Use summary mode for large files
+            if total_size > SUMMARY_MODE_SIZE:
+                self._compare_summary_mode(text_a, text_b)
+            else:
+                self._display_diff(text_a, text_b)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Comparison failed: {e}")
+            logging.error(f"Comparison failed: {e}")
+        finally:
+            # Re-enable compare button
+            self.btn_compare.config(state=tk.NORMAL)
+            self.btn_compare.config(text=f"Compare ({CMD_KEY_NAME}+Enter)")
 
         except Exception as e:
             messagebox.showerror("Error", f"Comparison failed: {e}")
@@ -369,6 +418,46 @@ class TextValidApp:
             self._log("SUCCESS: Files are identical (ignoring punctuation/whitespace).")
         else:
             self._log("Comparison complete. Differences found.")
+
+    def _compare_summary_mode(self, text_a, text_b):
+        """Lightweight comparison mode for large files - shows summary instead of full diff."""
+        self._clear_log()
+        self._log(f"Processing large files ({len(text_a) + len(text_b)} bytes total)...")
+        self._log("Summary mode: Results only, no full text display.")
+        
+        # Clear text widgets
+        self.text_a.config(state=tk.NORMAL)
+        self.text_b.config(state=tk.NORMAL)
+        self.text_a.delete(1.0, tk.END)
+        self.text_b.delete(1.0, tk.END)
+        
+        # Normalize
+        norm_a, _ = self.normalize_text(text_a)
+        norm_b, _ = self.normalize_text(text_b)
+        
+        # Quick comparison
+        if norm_a == norm_b:
+            self.text_a.insert(tk.END, "✓ Files are IDENTICAL\n\n(ignoring punctuation/whitespace)\n\nOriginal text is not displayed in summary mode for large files.", "header")
+            self.text_b.insert(tk.END, "✓ Files are IDENTICAL\n\n(ignoring punctuation/whitespace)\n\nOriginal text is not displayed in summary mode for large files.", "header")
+            self._log("SUCCESS: Files are identical (ignoring punctuation/whitespace).")
+        else:
+            # Show statistics
+            diff_count = sum(1 for a, b in zip(norm_a, norm_b) if a != b)
+            self.text_a.insert(tk.END, f"✗ Files are DIFFERENT\n\n", "header")
+            self.text_a.insert(tk.END, f"Differences detected: ~{diff_count} characters differ\n", "header")
+            self.text_a.insert(tk.END, f"\nSource length: {len(norm_a)} chars (normalized)\n", "header")
+            self.text_a.insert(tk.END, f"\nOriginal text is not displayed in summary mode for large files.", "header")
+            
+            self.text_b.insert(tk.END, f"✗ Files are DIFFERENT\n\n", "header")
+            self.text_b.insert(tk.END, f"Differences detected: ~{diff_count} characters differ\n", "header")
+            self.text_b.insert(tk.END, f"\nTarget length: {len(norm_b)} chars (normalized)\n", "header")
+            self.text_b.insert(tk.END, f"\nOriginal text is not displayed in summary mode for large files.", "header")
+            
+            self._log(f"Files are DIFFERENT: approximately {diff_count} characters differ.")
+        
+        self.text_a.config(state=tk.DISABLED)
+        self.text_b.config(state=tk.DISABLED)
+
 
     def _insert_and_sync(self, content_a, content_b, tag_a, tag_b=None):
         # If tag_b is not provided, use tag_a (for symmetric tags like 'header')
