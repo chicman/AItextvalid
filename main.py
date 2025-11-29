@@ -20,9 +20,10 @@ CMD_KEY_NAME = "Cmd" if IS_MAC else "Ctrl"
 
 # File size limits (in bytes)
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB hard limit
-WARN_FILE_SIZE = 1 * 1024 * 1024  # 1MB warning threshold
+WARN_FILE_SIZE = 5 * 1024 * 1024  # 5MB warning threshold
 SUMMARY_MODE_SIZE = 5 * 1024 * 1024  # 5MB - use summary mode instead of full diff
 CHUNK_SIZE = 50000  # Compare in 50KB chunks to prevent freezing
+
 
 
 class TextValidApp:
